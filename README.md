@@ -1,3 +1,5 @@
+[![Rust](https://github.com/jcole-sec/netproc-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/jcole-sec/netproc-rs/actions/workflows/rust.yml)
+
 # netproc-rs
 
 Rust implementation of NetProc (https://github.com/jcole-sec/netproc)
