@@ -1,0 +1,128 @@
+name: Build and Release
+
+on:
+  #push:
+  #  branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BIN_NAME: netproc-rs
+
+jobs:
+  build:
+    name: Build binaries
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # If Cargo.lock is missing or out of date, refresh it in CI so --locked builds succeed
+      - name: Sync lockfile if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f Cargo.lock ]; then
+            echo "No Cargo.lock found; generating one for this CI build."
+            cargo generate-lockfile
+          fi
+          if ! cargo metadata --locked --format-version=1 >/dev/null 2>&1; then
+            echo "Cargo.lock is out of date; updating in CI so the build can proceed."
+            cargo update -w
+          fi
+
+      - name: Build
+        run: cargo build --release --locked
+
+      # Package with native shells
+      - name: Package binary (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: cp "target/release/${BIN_NAME}" "${BIN_NAME}-ubuntu-latest"
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Copy-Item "target\release\${env:BIN_NAME}.exe" "${env:BIN_NAME}-windows-latest.exe"
+
+      # Upload exactly one artifact per OS
+      - name: Upload binary (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BIN_NAME }}-ubuntu-latest
+          path: ${{ env.BIN_NAME }}-ubuntu-latest
+          if-no-files-found: error
+
+      - name: Upload binary (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BIN_NAME }}-windows-latest
+          path: ${{ env.BIN_NAME }}-windows-latest.exe
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release with binaries only
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(awk -F\" '
+            /^\[package\]/ { p=1; next }
+            /^\[/ { p=0 }
+            p && /^version *= *"/ { print $2; exit }
+          ' Cargo.toml)
+          if [ -z "$VERSION" ]; then
+            echo "Could not determine version from Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Download artifacts (flatten)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.BIN_NAME }}-*
+          path: dist
+          merge-multiple: true
+
+      - name: Rename assets with version
+        shell: bash
+        run: |
+          set -euo pipefail
+          L_IN="dist/${{ env.BIN_NAME }}-ubuntu-latest"
+          W_IN="dist/${{ env.BIN_NAME }}-windows-latest.exe"
+          L_OUT="dist/${{ env.BIN_NAME }}-${{ steps.version.outputs.version }}-x86_64-linux"
+          W_OUT="dist/${{ env.BIN_NAME }}-${{ steps.version.outputs.version }}-x86_64-windows.exe"
+          [ -f "$L_IN" ] || { echo "Missing $L_IN"; exit 1; }
+          [ -f "$W_IN" ] || { echo "Missing $W_IN"; exit 1; }
+          mv "$L_IN" "$L_OUT"
+          mv "$W_IN" "$W_OUT"
+          ls -l dist
+
+      - name: Create release (attach binaries)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.sha }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            Automated release of version ${{ steps.version.outputs.version }}
+            Commit: ${{ steps.version.outputs.sha }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/${{ env.BIN_NAME }}-${{ steps.version.outputs.version }}-x86_64-linux
+            dist/${{ env.BIN_NAME }}-${{ steps.version.outputs.version }}-x86_64-windows.exe
