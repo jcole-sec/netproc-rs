@@ -7,7 +7,7 @@ edition = "2021"
 anyhow = "1"
 dns-lookup = "3"
 comfy-table = "7"
-indicatif = { version = "0.17", features = ["rayon"] }
+indicatif = { version = "0.18", features = ["rayon"] }
 rayon = "1"
 clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
