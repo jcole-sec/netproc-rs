@@ -1,4 +1,5 @@
-[![Rust](https://github.com/jcole-sec/netproc-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/jcole-sec/netproc-rs/actions/workflows/rust.yml)
+[![Dependabot Updates](https://github.com/jcole-sec/netproc-rs/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/jcole-sec/netproc-rs/actions/workflows/dependabot/dependabot-updates)
+
 
 # netproc-rs
 
