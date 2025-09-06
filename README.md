@@ -1,3 +1,4 @@
+[![Build and Release](https://github.com/jcole-sec/netproc-rs/actions/workflows/release.yml/badge.svg)](https://github.com/jcole-sec/netproc-rs/actions/workflows/release.yml)
 [![Dependabot Updates](https://github.com/jcole-sec/netproc-rs/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/jcole-sec/netproc-rs/actions/workflows/dependabot/dependabot-updates)
 
 
